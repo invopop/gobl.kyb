@@ -1,0 +1,18 @@
+# Local development helper. Brings up CouchDB so `go run
+# ./cmd/gobl.kyb serve --couchdb http://admin:pass@localhost:5984`
+# can connect without further setup.
+
+services:
+  couchdb:
+    image: couchdb:3.4
+    restart: unless-stopped
+    environment:
+      COUCHDB_USER: admin
+      COUCHDB_PASSWORD: pass
+    ports:
+      - "5984:5984"
+    volumes:
+      - couchdb-data:/opt/couchdb/data
+
+volumes:
+  couchdb-data: {}
