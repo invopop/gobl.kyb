@@ -118,6 +118,7 @@ func buildProvider(cfg config.Config) (provider.Provider, error) {
 	case config.ProviderDidit:
 		return didit.New(didit.Config{
 			BaseURL:               cfg.DiditBaseURL,
+			Environment:           cfg.DiditEnvironment,
 			APIKey:                cfg.DiditAPIKey,
 			WorkflowID:            cfg.DiditWorkflowID,
 			WebhookSecret:         cfg.DiditWebhookSecret,

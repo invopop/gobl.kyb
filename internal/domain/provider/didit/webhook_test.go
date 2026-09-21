@@ -1,10 +1,12 @@
 package didit
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
@@ -256,23 +258,77 @@ func TestCanonicalJSONIsStableUnderKeyOrder(t *testing.T) {
 		"the same payload must reproduce the same signature whatever order it arrives in")
 }
 
-func TestMapStatus(t *testing.T) {
+// The API returns title case with spaces — captured from a real
+// response and from the status enums on the sessions endpoints — while
+// the written documentation shows SCREAMING_SNAKE. Matching only the
+// documented spelling sends every real status to Unknown, which the
+// domain refuses to act on: sessions would open, be charged, and never
+// resolve. Both spellings are pinned here so that cannot regress.
+func TestMapStatusAcceptsTheSpellingTheAPIActuallyReturns(t *testing.T) {
 	tests := map[string]provider.Status{
+		// As the API returns them.
+		"Not Started":   provider.StatusPending,
+		"In Progress":   provider.StatusPending,
+		"Awaiting User": provider.StatusPending,
+		"Resubmitted":   provider.StatusPending,
+		"In Review":     provider.StatusReview,
+		"Approved":      provider.StatusApproved,
+		"Declined":      provider.StatusDeclined,
+		"Expired":       provider.StatusExpired,
+		"Abandoned":     provider.StatusExpired,
+		"Kyc Expired":   provider.StatusExpired,
+
+		// As the documentation writes them.
 		"NOT_STARTED": provider.StatusPending,
 		"IN_PROGRESS": provider.StatusPending,
-		// Not a fresh start: the applicant supplied more information
-		// for a check already running and already paid for.
 		"RESUBMITTED": provider.StatusPending,
 		"IN_REVIEW":   provider.StatusReview,
 		"APPROVED":    provider.StatusApproved,
 		"DECLINED":    provider.StatusDeclined,
 		"EXPIRED":     provider.StatusExpired,
-		"":            provider.StatusUnknown,
-		"SOMETHING":   provider.StatusUnknown,
+
+		// Neither.
+		"":          provider.StatusUnknown,
+		"SOMETHING": provider.StatusUnknown,
 	}
 	for in, want := range tests {
 		assert.Equal(t, want, mapStatus(in), "status %q", in)
 	}
+}
+
+// A live deployment pointed at a sandbox application would receive
+// decisions from mocked providers that checked nothing, and would
+// countersign them into real endorsements. A mocked decision is shaped
+// exactly like a real one, so this field is the only thing that can
+// tell them apart.
+func TestDecisionRefusesTheWrongEnvironment(t *testing.T) {
+	body := `{"session_id":"s1","status":"Approved","environment":"sandbox"}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+
+	live := testClient(t, func(cfg *Config) {
+		cfg.BaseURL = srv.URL
+		cfg.Environment = "live"
+	})
+	_, err := live.Decision(context.Background(), "s1")
+	require.ErrorIs(t, err, provider.ErrRejected)
+	require.ErrorContains(t, err, "sandbox")
+
+	sandbox := testClient(t, func(cfg *Config) {
+		cfg.BaseURL = srv.URL
+		cfg.Environment = "sandbox"
+	})
+	dec, err := sandbox.Decision(context.Background(), "s1")
+	require.NoError(t, err)
+	assert.Equal(t, provider.StatusApproved, dec.Status)
+}
+
+// Forgetting to set the environment must fail closed, not open.
+func TestEnvironmentDefaultsToLive(t *testing.T) {
+	c := testClient(t)
+	assert.Equal(t, "live", c.cfg.Environment)
 }
 
 func TestRegistryActive(t *testing.T) {

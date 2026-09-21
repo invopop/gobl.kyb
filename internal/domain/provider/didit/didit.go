@@ -50,6 +50,17 @@ type Config struct {
 	// accepted while the change propagates, so rotating costs no
 	// downtime and no lost callbacks.
 	WebhookSecretPrevious string
+	// Environment is the Didit environment this client expects to be
+	// talking to — "live" or "sandbox". Decisions reporting anything
+	// else are refused.
+	//
+	// This guards the worst credential mix-up available: a live
+	// deployment pointed at a sandbox application would receive
+	// decisions from mocked providers that never checked anything, and
+	// would countersign them into real endorsements. Nothing else in
+	// the pipeline can tell the difference, because a mocked decision
+	// is shaped exactly like a real one.
+	Environment string
 	// ClockSkew bounds how stale a callback timestamp may be.
 	ClockSkew time.Duration
 	// Timeout bounds a single API call.
@@ -81,6 +92,12 @@ func New(cfg Config) (*Client, error) {
 	}
 	if cfg.ClockSkew <= 0 {
 		cfg.ClockSkew = 5 * time.Minute
+	}
+	// Default to live: a sandbox deployment must say so explicitly, and
+	// forgetting to fails closed and loudly rather than quietly
+	// endorsing mocked checks.
+	if cfg.Environment == "" {
+		cfg.Environment = "live"
 	}
 	c := &Client{cfg: cfg, http: cfg.HTTPClient}
 	if c.http == nil {
@@ -172,13 +189,14 @@ func (c *Client) CreateSession(ctx context.Context, req provider.SessionRequest)
 // in Decision.Raw for the audit record; only the fields the match
 // check needs are decoded here.
 type decisionResponse struct {
-	SessionID  string `json:"session_id"`
-	Status     string `json:"status"`
-	VendorData string `json:"vendor_data"`
-	CreatedAt  string `json:"created_at"`
-	UpdatedAt  string `json:"updated_at"`
-	Reason     string `json:"decision_reason_code"`
-	Reviews    []struct {
+	SessionID   string `json:"session_id"`
+	Status      string `json:"status"`
+	VendorData  string `json:"vendor_data"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+	Environment string `json:"environment"`
+	Reason      string `json:"decision_reason_code"`
+	Reviews     []struct {
 		Status  string `json:"status"`
 		Comment string `json:"comment"`
 		Date    string `json:"date"`
@@ -218,6 +236,12 @@ func (c *Client) Decision(ctx context.Context, sessionID string) (*provider.Deci
 	var out decisionResponse
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return nil, fmt.Errorf("didit: decode decision: %w", err)
+	}
+
+	if env := strings.ToLower(strings.TrimSpace(out.Environment)); env != "" && env != c.cfg.Environment {
+		return nil, fmt.Errorf(
+			"%w: decision came from the %q environment, this client expects %q",
+			provider.ErrRejected, env, c.cfg.Environment)
 	}
 
 	dec := &provider.Decision{
@@ -320,13 +344,21 @@ func registryActive(status string) (active, known bool) {
 
 // mapStatus translates Didit's session vocabulary.
 //
-// RESUBMITTED deserves a note: it means the applicant was asked for
+// The API returns these in title case with spaces — "Not Started", "In
+// Review" — and not the SCREAMING_SNAKE the written documentation
+// shows. Both forms are accepted here, because matching only the
+// documented spelling maps every real response to Unknown, which the
+// domain records and refuses to act on: sessions would open, be
+// charged, and then never resolve except by an operator. Normalising
+// first costs nothing and survives either spelling.
+//
+// "Resubmitted" deserves a note: it means the applicant was asked for
 // more information and supplied it, so the check is running again. It
 // is emphatically not a fresh start — treating it as one would open a
 // second billed session for a check already in flight.
 func mapStatus(s string) provider.Status {
-	switch strings.ToUpper(strings.TrimSpace(s)) {
-	case "NOT_STARTED", "IN_PROGRESS", "RESUBMITTED":
+	switch normalizeStatus(s) {
+	case "NOT_STARTED", "IN_PROGRESS", "RESUBMITTED", "AWAITING_USER":
 		return provider.StatusPending
 	case "IN_REVIEW":
 		return provider.StatusReview
@@ -334,13 +366,23 @@ func mapStatus(s string) provider.Status {
 		return provider.StatusApproved
 	case "DECLINED", "REJECTED":
 		return provider.StatusDeclined
-	case "EXPIRED", "ABANDONED":
+	// "Kyc Expired" is a linked person check that lapsed rather than
+	// the business session itself, but the effect is the same: no
+	// decision is coming without starting over.
+	case "EXPIRED", "ABANDONED", "KYC_EXPIRED":
 		return provider.StatusExpired
-	case "":
-		return provider.StatusUnknown
 	default:
 		return provider.StatusUnknown
 	}
+}
+
+// normalizeStatus folds a status into one comparable spelling: upper
+// case, with spaces and hyphens as underscores.
+func normalizeStatus(s string) string {
+	s = strings.ToUpper(strings.TrimSpace(s))
+	s = strings.ReplaceAll(s, " ", "_")
+	s = strings.ReplaceAll(s, "-", "_")
+	return s
 }
 
 // do performs a JSON API call.

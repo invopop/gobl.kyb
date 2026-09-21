@@ -87,6 +87,11 @@ type Config struct {
 
 	// Provider selects the KYB provider implementation.
 	Provider string
+	// DiditEnvironment is the Didit environment this deployment talks
+	// to: "live" or "sandbox". A decision reporting a different
+	// environment is refused, so a credential mix-up cannot turn
+	// mocked sandbox checks into real endorsements.
+	DiditEnvironment string
 	// DiditBaseURL is the provider API root.
 	DiditBaseURL string
 	// DiditAPIKey authenticates API calls (the x-api-key header).
@@ -190,6 +195,7 @@ func FromEnv() Config {
 		Authority:     Env("AUTHORITY", DefaultAuthority),
 
 		Provider:                   Env("PROVIDER", ProviderDidit),
+		DiditEnvironment:           Env("DIDIT_ENVIRONMENT", "live"),
 		DiditBaseURL:               Env("DIDIT_BASE_URL", "https://verification.didit.me"),
 		DiditAPIKey:                Env("DIDIT_API_KEY", ""),
 		DiditWorkflowID:            Env("DIDIT_WORKFLOW_ID", ""),
@@ -247,6 +253,12 @@ func (c Config) Validate() error {
 		}
 	default:
 		return fmt.Errorf("config: unknown PROVIDER %q", c.Provider)
+	}
+
+	switch c.DiditEnvironment {
+	case "live", "sandbox":
+	default:
+		return fmt.Errorf("config: DIDIT_ENVIRONMENT must be live or sandbox, got %q", c.DiditEnvironment)
 	}
 
 	switch c.PaymentMode {
