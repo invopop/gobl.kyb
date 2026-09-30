@@ -1,0 +1,216 @@
+{
+  "_comment": "Captured from a real Didit sandbox session on 2026-09-30 (session 57fde0f7-8866-407c-b9bc-66b5b6995f45, workflow 'GOBL Net KYB'). Trimmed only where it was pure repetition: the presigned S3 document URLs are redacted because they carry short-lived AWS credentials and do not belong in a repository, and ip_analyses had fourteen identical entries of which one is kept. Every field this package reads is verbatim.",
+  "session_id": "57fde0f7-8866-407c-b9bc-66b5b6995f45",
+  "session_kind": "business",
+  "session_number": 2,
+  "session_url": "https://verify.didit.me/session/BGXzTQAfu_fG",
+  "status": "Declined",
+  "status_override": null,
+  "workflow_id": "58388e24-4020-46c6-aa67-3db55ca812d5",
+  "features": ["KYB_REGISTRY", "AML", "KYB_DOCUMENTS", "KYB_KEY_PEOPLE", "IP_ANALYSIS"],
+  "vendor_data": "acme.sandbox.invopop.net#2",
+  "metadata": {
+    "attempt": "2",
+    "authority": "lookup.sandbox.gobl.org",
+    "gobl_address": "acme.sandbox.invopop.net"
+  },
+  "callback": null,
+  "registry_checks": [
+    {
+      "status": "Declined",
+      "node_id": "kyb_registry",
+      "data_resolved": false,
+      "company": {
+        "uuid": "a582bbc2-60a8-4177-93a9-c1c35885c4f6",
+        "node_id": "kyb_registry",
+        "status": "Declined",
+        "registry_status": "active",
+        "data_resolved": false,
+        "company_name": "Sandbox Holdings Ltd",
+        "registration_number": "SANDBOX-0001",
+        "country_code": "ES",
+        "region": "",
+        "company_type": "Private Limited Company",
+        "incorporation_date": "2010-01-01",
+        "registered_address": "1 Sandbox Way, Sandbox City",
+        "tax_number": "GB-SANDBOX-VAT-0001",
+        "risk_level": null,
+        "verification_status": null,
+        "is_from_registry": true,
+        "fetch_status": null,
+        "alternative_names": null,
+        "vat_number": null,
+        "vat_validation_status": "not_applicable",
+        "officers": [],
+        "beneficial_owners": [],
+        "addresses": [
+          {"type": "principal_office_address", "address": "1 Sandbox Way, Sandbox City"}
+        ],
+        "registry_data": {
+          "name": "Sandbox Holdings Ltd",
+          "type": "Private Limited Company",
+          "status": "active",
+          "tax_number": "GB-SANDBOX-VAT-0001",
+          "people_detail": [],
+          "beneficial_owners_detail": [],
+          "registration_date": "2010-01-01",
+          "incorporation_date": "2010-01-01",
+          "registration_number": "SANDBOX-0001"
+        },
+        "registry_tier": null,
+        "registry_tier_delivered": null,
+        "registry_monitoring": null,
+        "registry_ownership_status": null,
+        "user_provided_data": {
+          "tax_number": "GB-SANDBOX-VAT-0001",
+          "company_name": "Sandbox Holdings Ltd",
+          "company_type": "Private Limited Company",
+          "country_code": "ES",
+          "legal_address": "1 Sandbox Way, Sandbox City",
+          "incorporation_date": "2010-01-01",
+          "registration_number": "SANDBOX-0001"
+        },
+        "confirmed_by_user_at": "2026-09-30T21:18:13.586442Z",
+        "last_console_edit_at": null,
+        "is_editable": false
+      },
+      "ownership_structure": null,
+      "warnings": [
+        {
+          "feature": "KYB_REGISTRY",
+          "risk": "KYB_REGISTRY_DATA_MISMATCH_WITH_EXPECTED",
+          "additional_data": {
+            "expected_registration_number": "B12345674",
+            "registry_registration_number": "SANDBOX-0001"
+          },
+          "log_type": "error",
+          "short_description": "Registry company data does not match expected details",
+          "long_description": "The company resolved from the corporate registry does not match the registration number provided in the expected business details.",
+          "node_id": "kyb_registry"
+        },
+        {
+          "feature": "KYB_REGISTRY",
+          "risk": "KYB_OWNERSHIP_DATA_NOT_FOUND",
+          "additional_data": null,
+          "log_type": "information",
+          "short_description": "Company ownership data not available",
+          "long_description": "Company ownership data (information on persons with significant control) is absent from the corporate registry.",
+          "node_id": "kyb_registry"
+        },
+        {
+          "feature": "KYB_REGISTRY",
+          "risk": "KYB_OFFICERS_DATA_NOT_FOUND",
+          "additional_data": null,
+          "log_type": "information",
+          "short_description": "Company officers data not available",
+          "long_description": "Company officers data (directors, secretaries) is absent from the corporate registry.",
+          "node_id": "kyb_registry"
+        }
+      ]
+    }
+  ],
+  "aml_screenings": [
+    {
+      "status": "Approved",
+      "total_hits": 0,
+      "entity_type": "company",
+      "hits": [],
+      "score": 0,
+      "screened_data": {},
+      "is_ongoing_monitoring_enabled": false,
+      "warnings": [],
+      "node_id": "aml"
+    }
+  ],
+  "document_verifications": [
+    {
+      "status": "Approved",
+      "node_id": "kyb_registry",
+      "items": [
+        {
+          "uuid": "17a6f3ea-820b-4078-bacf-a126fef5ff19",
+          "document_type": "COMPANY_DETAILS",
+          "document_subtype": "CONFIRMATION_STATEMENT",
+          "document_group": "COMPANY_DETAILS",
+          "file_url": "REDACTED-PRESIGNED-S3-URL",
+          "status": "Approved",
+          "created_at": "2026-09-30T21:18:51.902860Z",
+          "cross_check_result": {
+            "people": {},
+            "critical": {
+              "company_name": {"match": true, "score": 1, "document": "Sandbox Holdings Ltd", "registry": "Sandbox Holdings Ltd"},
+              "registration_number": {"match": true, "document": "SANDBOX-0001", "registry": "SANDBOX-0001"}
+            },
+            "non_critical": {}
+          },
+          "ocr_data": {
+            "issue_date": "2026-09-30",
+            "company_name": "Sandbox Holdings Ltd",
+            "document_type": "COMPANY_DETAILS",
+            "document_subtype": "CONFIRMATION_STATEMENT",
+            "registration_number": "SANDBOX-0001"
+          },
+          "is_confirmed": true
+        }
+      ],
+      "groups": {
+        "COMPANY_DETAILS": {"total": 1, "approved": 1, "pending": 0, "declined": 0, "in_review": 0, "other": 0, "missing": 0},
+        "LEGAL_PRESENCE": {"total": 1, "approved": 1, "pending": 0, "declined": 0, "in_review": 0, "other": 0, "missing": 0}
+      },
+      "required_groups": ["LEGAL_PRESENCE", "COMPANY_DETAILS"],
+      "warnings": []
+    }
+  ],
+  "document_ai_documents": null,
+  "key_people_checks": [
+    {
+      "status": "Approved",
+      "node_id": "kyb_registry",
+      "registry": {"officers": [], "beneficial_owners": []},
+      "submitted": {
+        "parties": [
+          {
+            "uuid": "1925bd30-53a9-47d3-8cc8-d72edd7ccbfb",
+            "entity_type": "person",
+            "source": "USER",
+            "name": "Test Person",
+            "email": "test@example.com",
+            "nationality": "ES",
+            "custom_fields": {},
+            "is_active": true,
+            "is_skipped": false,
+            "requires_verification": true,
+            "roles": [
+              {"role": "ubo", "ownership_percent": 100, "voting_percent": null},
+              {"role": "shareholder", "ownership_percent": 100, "voting_percent": null},
+              {"role": "director", "ownership_percent": 100, "voting_percent": null}
+            ],
+            "kyc_session_id": "d476084b-cc4a-4ad7-a9cf-5efdf418302c",
+            "kyc_session_status": "Approved",
+            "kyc_session_url": "https://verify.didit.me/session/B2AUnY-Xj3uC",
+            "verification_workflow_type": "kyc",
+            "verification_workflow_id": "69136045-96d4-4be8-ade8-21eef65d9a8d",
+            "verification_workflow_label": "KYC + AML",
+            "verification_workflow_features": [
+              {"feature": "ID_VERIFICATION", "status": "Approved"},
+              {"feature": "LIVENESS", "status": "Approved"},
+              {"feature": "FACE_MATCH", "status": "Approved"},
+              {"feature": "AML", "status": "Approved"},
+              {"feature": "IP_ANALYSIS", "status": "Approved"}
+            ]
+          }
+        ]
+      },
+      "ubo_kyc_summary": null,
+      "warnings": []
+    }
+  ],
+  "ip_analyses": [
+    {"status": "Approved", "node_id": "ip_analysis", "platform": "desktop", "ip_country_code": "USA", "ip_address": "8.8.8.8", "is_vpn_or_tor": false, "is_data_center": false, "warnings": [], "matches": []}
+  ],
+  "contact_details": {"email": "finance@acme.example", "send_notification_emails": false, "phone": null},
+  "expected_details": {"company_name": "Acme Widgets SL", "registry_country": "ES", "registration_number": "B12345674"},
+  "environment": "sandbox",
+  "created_at": "2026-09-30T21:17:01.795068Z",
+  "expires_at": "2026-10-07T21:17:01.785551Z"
+}

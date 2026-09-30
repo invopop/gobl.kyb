@@ -202,9 +202,47 @@ type decisionResponse struct {
 		Date    string `json:"date"`
 	} `json:"reviews"`
 	RegistryChecks []struct {
-		Status  string  `json:"status"`
-		Company company `json:"company"`
+		Status   string    `json:"status"`
+		Company  company   `json:"company"`
+		Warnings []warning `json:"warnings"`
 	} `json:"registry_checks"`
+	KeyPeopleChecks []struct {
+		Status   string `json:"status"`
+		Registry struct {
+			Officers         []party `json:"officers"`
+			BeneficialOwners []party `json:"beneficial_owners"`
+		} `json:"registry"`
+		Submitted struct {
+			Parties []party `json:"parties"`
+		} `json:"submitted"`
+	} `json:"key_people_checks"`
+}
+
+// warning is one of the risk flags a feature raises. There is no
+// decision_reason_code field on a real response — the explanation for a
+// refusal lives here, keyed by `risk`.
+type warning struct {
+	Feature          string `json:"feature"`
+	Risk             string `json:"risk"`
+	LogType          string `json:"log_type"`
+	ShortDescription string `json:"short_description"`
+}
+
+// party is a key person, in either the registry-disclosed or the
+// applicant-submitted bucket.
+type party struct {
+	Name       string `json:"name"`
+	EntityType string `json:"entity_type"`
+	// Source is only present on submitted parties; the registry
+	// buckets are unambiguous by position.
+	Source string `json:"source"`
+	Roles  []struct {
+		Role             string   `json:"role"`
+		OwnershipPercent *float64 `json:"ownership_percent"`
+	} `json:"roles"`
+	IsSkipped            bool   `json:"is_skipped"`
+	RequiresVerification bool   `json:"requires_verification"`
+	KYCSessionStatus     string `json:"kyc_session_status"`
 }
 
 // company mirrors registry_checks[].company.
@@ -259,7 +297,82 @@ func (c *Client) Decision(ctx context.Context, sessionID string) (*provider.Deci
 		dec.DecidedAt = t
 	}
 	dec.Company = mapCompany(out)
+	dec.KeyPeople = mapKeyPeople(out)
+	if dec.Reason == "" {
+		dec.Reason = mapReason(out)
+	}
 	return dec, nil
+}
+
+// mapReason summarises why a session was refused. The documented
+// decision_reason_code is absent from real responses; the explanation
+// is in the per-feature warnings, of which only the ones logged as
+// errors actually bear on the outcome.
+func mapReason(out decisionResponse) string {
+	var risks []string
+	for _, rc := range out.RegistryChecks {
+		for _, w := range rc.Warnings {
+			if strings.EqualFold(w.LogType, "error") && w.Risk != "" {
+				risks = append(risks, w.Risk)
+			}
+		}
+	}
+	return strings.Join(risks, ", ")
+}
+
+// mapKeyPeople flattens both buckets, keeping where each person came
+// from. That provenance is the whole point: the hosted flow lets the
+// applicant add and remove people, so a director they typed in proves
+// nothing about the company, while one the registry disclosed does.
+func mapKeyPeople(out decisionResponse) []provider.Person {
+	var people []provider.Person
+	for _, kp := range out.KeyPeopleChecks {
+		for _, p := range kp.Registry.Officers {
+			people = append(people, mapParty(p, provider.PersonSourceRegistry))
+		}
+		for _, p := range kp.Registry.BeneficialOwners {
+			people = append(people, mapParty(p, provider.PersonSourceRegistry))
+		}
+		for _, p := range kp.Submitted.Parties {
+			people = append(people, mapParty(p, sourceOf(p.Source)))
+		}
+	}
+	return people
+}
+
+// sourceOf reads a submitted party's provenance, failing closed:
+// anything not positively marked as coming from the registry is
+// treated as applicant data.
+func sourceOf(s string) provider.PersonSource {
+	switch strings.ToUpper(strings.TrimSpace(s)) {
+	case "REGISTRY":
+		return provider.PersonSourceRegistry
+	case "USER", "APPLICANT":
+		return provider.PersonSourceApplicant
+	default:
+		return provider.PersonSourceUnknown
+	}
+}
+
+// mapParty converts one key person.
+func mapParty(p party, source provider.PersonSource) provider.Person {
+	person := provider.Person{
+		Name:                 p.Name,
+		Source:               source,
+		RequiresVerification: p.RequiresVerification,
+		Skipped:              p.IsSkipped,
+		KYCStatus:            mapStatus(p.KYCSessionStatus),
+	}
+	for _, r := range p.Roles {
+		if r.Role == "" {
+			continue
+		}
+		person.Roles = append(person.Roles, r.Role)
+		if person.OwnershipPercent == nil && r.OwnershipPercent != nil {
+			person.OwnershipPercent = r.OwnershipPercent
+		}
+	}
+	return person
 }
 
 // mapCompany flattens the registry check onto the domain's record.
@@ -287,8 +400,12 @@ func mapCompany(out decisionResponse) provider.CompanyRecord {
 			TaxCode:            co.TaxNumber,
 			VATNumber:          co.VATNumber,
 			LegalForm:          co.CompanyType,
-			Status:             firstNonEmpty(co.RegistryStatus, co.Status),
-			Address:            co.RegisteredAddress,
+			// Only registry_status is the registry's own wording.
+			// company.status is the *check* result ("Declined") and
+			// means something entirely different, so it is never used
+			// as a fallback here.
+			Status:  co.RegistryStatus,
+			Address: co.RegisteredAddress,
 		}
 		if active, known := registryActive(rec.Status); known {
 			rec.Active = &active
